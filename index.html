@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jar Filling Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --wa-green: #25D366;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            touch-action: manipulation;
+        }
+
+        .lang-switcher {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .lang-btn {
+            background: #ddd;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .lang-btn.active { background: var(--wa-green); color: white; }
+
+        h1 { margin-bottom: 5px; font-size: 22px; text-align: center; }
+        #instruction { margin-top: 0; font-size: 14px; opacity: 0.7; margin-bottom: 20px; }
+
+        #game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            max-width: 380px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        .user-name-input {
+            grid-column: span 2;
+            border: 2px solid #f0f0f0;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+        }
+
+        .jar-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .jar {
+            width: 70px;
+            height: 90px;
+            border: 3px solid #444;
+            border-radius: 8px 8px 18px 18px;
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .liquid {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            transition: height 0.3s ease-out;
+        }
+
+        .label {
+            margin-top: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .controls {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button.main-btn {
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-share { background-color: var(--wa-green); color: white; }
+        .btn-reset { background-color: transparent; color: #999; text-decoration: underline; font-size: 13px; }
+
+        #render-target { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="lang-switcher">
+        <button class="lang-btn" onclick="setLanguage('es')">ES</button>
+        <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" onclick="setLanguage('pt')">PT</button>
+    </div>
+
+    <h1 id="title">¿Qué tan lleno estás?</h1>
+    <p id="instruction">Toca los frascos para llenarlos</p>
+
+    <div id="game-container">
+        <input type="text" id="userName" class="user-name-input" placeholder="..." maxlength="15">
+        
+        </div>
+
+    <div class="controls">
+        <button class="main-btn btn-share" id="btnShare" onclick="shareToWhatsApp()">Compartir en WhatsApp</button>
+        <button class="btn-reset" id="btnReset" onclick="resetGame()">Reiniciar</button>
+    </div>
+
+    <script>
+        const translations = {
+            es: {
+                title: "¿Qué tan lleno estás?",
+                instruction: "Toca los frascos para llenarlos",
+                placeholder: "Tu nombre aquí...",
+                share: "Compartir en WhatsApp",
+                generating: "Generando...",
+                reset: "Reiniciar",
+                traits: ["Divertida", "Creativa", "Enojona", "Leal", "Soñadora", "Valiente"]
+            },
+            en: {
+                title: "How full are you?",
+                instruction: "Tap the jars to fill them up",
+                placeholder: "Your name here...",
+                share: "Share on WhatsApp",
+                generating: "Generating...",
+                reset: "Reset",
+                traits: ["Funny", "Creative", "Grumpy", "Loyal", "Dreamer", "Brave"]
+            },
+            pt: {
+                title: "Quão cheio você está?",
+                instruction: "Toque nos frascos para encher",
+                placeholder: "Seu nome aqui...",
+                share: "Compartilhar no WhatsApp",
+                generating: "Gerando...",
+                reset: "Reiniciar",
+                traits: ["Engraçada", "Criativa", "Zangada", "Leal", "Sonhadora", "Valente"]
+            }
+        };
+
+        const colors = ['#FF5E5E', '#FFD93D', '#6BCB77', '#4D96FF', '#9b59b6', '#e67e22'];
+        let currentLang = 'es';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            
+            // Update UI Text
+            document.getElementById('title').innerText = translations[lang].title;
+            document.getElementById('instruction').innerText = translations[lang].instruction;
+            document.getElementById('userName').placeholder = translations[lang].placeholder;
+            document.getElementById('btnShare').innerText = translations[lang].share;
+            document.getElementById('btnReset').innerText = translations[lang].reset;
+
+            // Highlight active button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === lang);
+            });
+
+            renderJars();
+        }
+
+        function renderJars() {
+            const container = document.getElementById('game-container');
+            // Keep the input, remove old jars
+            const input = document.getElementById('userName');
+            container.innerHTML = '';
+            container.appendChild(input);
+
+            translations[currentLang].traits.forEach((trait, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'jar-wrapper';
+                wrapper.onclick = () => fillJar(wrapper, colors[index]);
+                
+                wrapper.innerHTML = `
+                    <div class="jar"><div class="liquid"></div></div>
+                    <div class="label">${trait}</div>
+                `;
+                container.appendChild(wrapper);
+            });
+        }
+
+        function fillJar(element, color) {
+            const liquid = element.querySelector('.liquid');
+            let currentHeight = parseInt(liquid.style.height) || 0;
+            let newHeight = currentHeight + 25;
+            if (newHeight > 100) newHeight = 0;
+            liquid.style.height = newHeight + '%';
+            liquid.style.backgroundColor = color;
+        }
+
+        function resetGame() {
+            document.querySelectorAll('.liquid').forEach(l => l.style.height = '0%');
+            document.getElementById('userName').value = '';
+        }
+
+        async function shareToWhatsApp() {
+            const container = document.getElementById('game-container');
+            const btn = document.getElementById('btnShare');
+            const originalText = btn.innerText;
+            btn.innerText = translations[currentLang].generating;
+            
+            try {
+                const canvas = await html2canvas(container, { backgroundColor: '#ffffff' });
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], 'my-jar.png', { type: 'image/png' });
+                    
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: translations[currentLang].title
+                        });
+                    } else {
+                        const link = document.createElement('a');
+                        link.download = 'my-jar.png';
+                        link.href = canvas.toDataURL();
+                        link.click();
+                    }
+                    btn.innerText = originalText;
+                });
+            } catch (err) {
+                btn.innerText = "Error";
+                setTimeout(() => btn.innerText = originalText, 2000);
+            }
+        }
+
+        // Initialize based on browser language
+        const userLang = navigator.language.substring(0, 2);
+        setLanguage(translations[userLang] ? userLang : 'en');
+
+    </script>
+</body>
+</html>
